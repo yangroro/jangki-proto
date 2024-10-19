@@ -1,0 +1,1 @@
+op document get ".env 파일" --output=.env
