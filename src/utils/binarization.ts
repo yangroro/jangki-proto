@@ -10,6 +10,7 @@ export async function binarizeReceipt(imagePath: string): Promise<Buffer> {
 
     // Otsu's 방법을 사용한 임계값 계산
     const threshold = otsuThreshold(image as JimpInstance);
+    console.log("이진화 임계값:", threshold);
 
     // 이진화 적용
     image.scan(0, 0, image.bitmap.width, image.bitmap.height, (x, y, idx) => {

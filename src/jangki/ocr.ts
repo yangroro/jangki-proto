@@ -111,8 +111,10 @@ export async function performAndMergeOCR(
     totalHeight += imageHeight;
   }
 
-  // Compute the average confidence
-  const averageConfidence = totalConfidence / images.length;
+  // Compute the minimum confidence
+  const minConfidence = Math.min(
+    ...originalResults.map((result) => result.confidence)
+  );
 
   // Validate that all images have the same width
   if (widths.size !== 1) {
@@ -136,7 +138,7 @@ export async function performAndMergeOCR(
 
   const mergedResult: OCRResult = {
     text: mergedText,
-    confidence: averageConfidence,
+    confidence: minConfidence,
     words: mergedWords,
     metadata: mergedMetadata,
   };
@@ -144,17 +146,20 @@ export async function performAndMergeOCR(
   return mergedResult;
 }
 
-export async function makeBoxedImage(image: JimpInstance, ocrResult: OCRResult) {
+export async function makeBoxedImage(
+  image: JimpInstance,
+  ocrResult: OCRResult
+) {
   // OCR 결과의 vertices를 이용해서 ocr인식한 텍스트를 이미지에 빨간색 박스로 표시
   const red = rgbaToInt(255, 0, 0, 255);
-  
+
   for (const word of ocrResult.words) {
     const vertices = word.boundingBox.vertices;
-    const minX = Math.min(...vertices.map(v => v.x));
-    const minY = Math.min(...vertices.map(v => v.y));
-    const maxX = Math.max(...vertices.map(v => v.x));
-    const maxY = Math.max(...vertices.map(v => v.y));
-    
+    const minX = Math.min(...vertices.map((v) => v.x));
+    const minY = Math.min(...vertices.map((v) => v.y));
+    const maxX = Math.max(...vertices.map((v) => v.x));
+    const maxY = Math.max(...vertices.map((v) => v.y));
+
     // 박스 그리기
     for (let x = minX; x <= maxX; x++) {
       image.setPixelColor(red, x, minY);
@@ -165,6 +170,6 @@ export async function makeBoxedImage(image: JimpInstance, ocrResult: OCRResult) 
       image.setPixelColor(red, maxX, y);
     }
   }
-  
+
   return image;
 }

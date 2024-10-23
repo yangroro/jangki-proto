@@ -52,9 +52,11 @@ export async function textToCSV(receiptText: string): Promise<string> {
     system: SYSTEM_PROMPT,
     prompt: receiptText,
   });
-
+  // 종종 응답이 markdown 형식으로 오기 때문에 이를 처리합니다.
   if (responseText.startsWith("```")) {
-    return responseText.slice(1, -1);
+    const lines = responseText.split("\n");
+    const csvContent = lines.slice(1, -1).join("\n");
+    return csvContent;
   }
   return responseText;
 }
