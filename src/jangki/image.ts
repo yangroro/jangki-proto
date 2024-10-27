@@ -1,7 +1,12 @@
 import { Jimp, JimpInstance } from "jimp";
 
 export async function readReceipt(path: string): Promise<JimpInstance> {
-  return (await Jimp.read(path)) as JimpInstance;
+  try {
+    return (await Jimp.read(path)) as JimpInstance;
+  } catch (error) {
+    console.error(`${path} 이미지 로드 중 오류 발생:`, error);
+    throw error;
+  }
 }
 
 export async function binaryReceipt(
@@ -154,6 +159,8 @@ export function splitReceipt(
 
   let currentY = 0;
 
+  const whiteLineYs: number[] = [];
+
   while (currentY < height) {
     let searchStartY = currentY + minHeight;
 
@@ -167,8 +174,8 @@ export function splitReceipt(
       searchStartY,
       minThickness
     );
-    console.log("whiteLineY:", whiteLineY, searchStartY, minThickness);
     if (whiteLineY !== null && whiteLineY < height) {
+      whiteLineYs.push(whiteLineY);
       const splitHeight = whiteLineY - currentY;
       const croppedImage = image.clone().crop({
         x: 0,
@@ -195,6 +202,5 @@ export function splitReceipt(
       break;
     }
   }
-
   return images;
 }

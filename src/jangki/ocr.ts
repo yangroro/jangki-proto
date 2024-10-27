@@ -11,7 +11,7 @@ interface Word {
   text: string;
 }
 
-interface OCRResult {
+export interface OCRResult {
   text: string;
   confidence: number;
   words: Word[];
@@ -29,7 +29,8 @@ async function callOCRAPI(
   image: JimpInstance,
   filename: string
 ): Promise<OCRResult> {
-  const extension = filename.split(".").pop();
+  // 확장자가 jpg인 경우 jpeg로 변경
+  const extension = filename.split(".").pop()?.replace("jpg", "jpeg");
   const mime = `image/${extension}`;
   // @ts-ignore
   const buffer = await image.getBuffer(mime);
