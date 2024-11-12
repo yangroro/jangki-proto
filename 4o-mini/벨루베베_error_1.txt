@@ -1,0 +1,4 @@
+품명,색상,사이즈,단가,수량,금액,미송여부
+골지 라인 삭스,,7,000,1,7,000,N
+로망 벨루 베레모,아이보리,FREE,9,000,1,9,000,N
+Error: Invalid Record Length: columns length is 7, got 8 on line 2

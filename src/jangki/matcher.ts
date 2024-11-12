@@ -14,8 +14,10 @@ interface ReceiptData {
   amount: number;
   isNotSent: boolean;
   foundCount: number;
-
+  
   normalizedProductName?: string;
+  normalizedColor?: string;
+  normalizedSize?: string;
 }
 
 export function csvToReceiptData(
@@ -35,6 +37,8 @@ export function csvToReceiptData(
     isNotSent: row["미송여부"] === "Y",
     foundCount: 0,
     normalizedProductName: normalizeProductName(row["품명"]),
+    normalizedColor: normalizeColor(row["색상"]),
+    normalizedSize: normalizeSize(row["사이즈"]),
   }));
 }
 
@@ -45,9 +49,10 @@ function receiptDataToSheetData(receiptData: ReceiptData[]): any[] {
     색상: data.color,
     사이즈: data.size,
     수량: data.quantity,
-    매칭여부: data.foundCount > 0,
     미송여부: data.isNotSent,
-    상품명2: data.normalizedProductName,
+    Nor상품명: data.normalizedProductName,
+    Nor색상: data.normalizedColor,
+    Nor사이즈: data.normalizedSize,
   }));
 }
 
@@ -61,8 +66,6 @@ export async function loadCSVFilesFromDirectory(
     if (path.extname(file) === ".csv") {
       const filePath = path.join(directoryPath, file);
       const fileResults: any[] = [];
-
-      console.log(`Loading CSV file: ${filePath}`);
 
       const parser = fs.createReadStream(filePath).pipe(
         parse({
@@ -104,7 +107,6 @@ export async function addSheetToExcel(
     }));
     data.forEach((row) => worksheet.addRow(row));
   }
-  console.log(`Added sheet: ${sheetName}`);
 }
 
 export async function saveExcelFile(
@@ -115,7 +117,14 @@ export async function saveExcelFile(
   console.log(`Saved Excel file: ${filePath}`);
 }
 
+function convertToComposite(input: string): string {
+  return input.normalize('NFC');
+}
+
 export function normalizeProductName(productName: string): string {
+  productName = convertToComposite(productName);
+  // 대문자로 전환
+  productName = productName.toUpperCase();
   // 예시: 01.공룡맨투맨 -> 공룡맨투맨
   productName = productName.replace(/^\d+\./, "");
 
@@ -126,41 +135,125 @@ export function normalizeProductName(productName: string): string {
   // 공백 제거
   productName = productName.replace(/\s+/g, "");
 
-
   // 특수문자 단순 제거
   productName = productName.replace(/[^\w가-힣]+/g, "");
 
   // postfix 용어집, 대소문자 모두 매칭
   const nameDictionary: { [key: string]: string } = {
-    t: "티",
-    mtm: "맨투맨",
-    pt: "팬츠",
-    jp: "점퍼",
-    jk: "자켓",
+    TEE: "티셔츠",
+    OPS: "원피스",
+    MTM: "맨투맨",
+    PT: "팬츠",
+    JP: "점퍼",
+    JK: "자켓",
+    SET: "세트",
+    LE: "레깅스",
+    P: "팬츠",
+    T: "티셔츠",
+    SK: "스커트",
+    바지: "팬츠",
+    맨투맨티셔츠: "맨투맨",
   };
   // key의 길이순으로 정렬 길이 내림차순
   const sortedPostfixDictionary = Object.keys(nameDictionary).sort(
     (a, b) => b.length - a.length
   );
-  // 대문자 소문자 모두 매칭₩
+
   for (const postfix of sortedPostfixDictionary) {
-    productName = productName.replace(postfix.toLowerCase(), nameDictionary[postfix]);
-    productName = productName.replace(postfix.toUpperCase(), nameDictionary[postfix]);
+    productName = productName.replace(
+      postfix.toUpperCase(),
+      nameDictionary[postfix]
+    );
   }
+
+  // 상품명에 시즌 표기로 시작하는 경우 제거
+  // 예시: 23SS, 24SS, 23FW, 24FW, 23S, 23F, 24S, 24F
+  productName = productName.replace(/[0-9]+[S|F|W|FW|SS|]/, "");
+  // "티"로 끝나는 경우 티셔츠로 변경
+  productName = productName.replace(/티$/, "티셔츠");
 
   return productName;
 }
 
 function normalizeColor(color: string): string {
+  color = convertToComposite(color);
+  // 모두 대문자로 전환
+  color = color.toUpperCase();
   // 공백 제거
   color = color.replace(/\s+/g, "");
   // 특수문자 제거
   color = color.replace(/[^\w가-힣]+/g, "");
 
+  const nameDictionary: { [key: string]: string } = {
+    검정: "블랙",
+    흰색: "화이트",
+    파랑: "블루",
+    빨강: "레드",
+    초록: "그린",
+    노랑: "옐로우",
+    보라: "퍼플",
+    회색: "그레이",
+    메란: "메란지",
+    멜란지: "메란지",
+    밤색: "브라운",
+
+    // 오타 수정
+    덕색: "먹색",
+  };
+  const exactDictionary: { [key: string]: string } = {
+    아이: "아이보리",
+    차콜: "챠콜",
+    연핑: "연핑크",
+    회: "그레이",
+    검: "블랙",
+    연회: "연회색",
+    연베: "연베이지",
+  };
+
+  if (exactDictionary[color]) {
+    color = exactDictionary[color];
+  } else if (nameDictionary[color]) {
+    color = nameDictionary[color];
+  }
+
+  const sortedPostfixDictionary = Object.keys(nameDictionary).sort(
+    (a, b) => b.length - a.length
+  );
+
+  for (const postfix of sortedPostfixDictionary) {
+    color = color.replace(postfix.toUpperCase(), nameDictionary[postfix]);
+  }
+
   return color;
 }
 
+function normalizeSize(size: string | null | number): string {
+  if (!size) {
+    return "";
+  } else if (typeof size === "number") {
+    size = size.toString();
+  }
+  size = convertToComposite(size);
+  size = size.toUpperCase();
+  // 공백 제거
+  size = size.replace(/\s+/g, "");
+  // 호로 끝나는 경우 호 제거
+  size = size.replace(/호$/, "");
+  // ONESIZE -> ONE
+  size = size.replace("ONESIZE", "ONE");
 
+  const exactDictionary: { [key: string]: string } = {
+    ONESIZE: "ONE",
+  };
+  if (exactDictionary[size]) {
+    size = exactDictionary[size];
+  }
+
+  // S(0-6M) -> S L(5~8) -> L 과같이 괄호 안에 내용물이 있고 XS, S, M, L, XL 과같이 크기만 표기된 경우 괄호 제거
+  size = size.replace(/\([^\)]+\)/, "");
+
+  return size;
+}
 class OrderSheet {
   excelData: ExcelJS.Workbook;
   firstSheet: ExcelJS.Worksheet;
@@ -200,7 +293,7 @@ export async function run(csvPath: string, excelPath: string) {
     orderSheet.addSheet(receiptName, receiptDataToSheetData(receiptData));
     totalReceiptData.push(...receiptData);
   }
-  
+
   const brandNameColumnNumber = orderSheet.findOrAddColumn("브랜드");
   const productNameColumnNumber = orderSheet.findOrAddColumn("상품명");
   const colorColumnNumber = orderSheet.findOrAddColumn("색상");
@@ -212,27 +305,39 @@ export async function run(csvPath: string, excelPath: string) {
   // 미송여부 칼럼을 찾고 없는 경우 끝에 추가
   let isNotSentColumnNumber = orderSheet.findOrAddColumn("미송여부");
   //  normalizeProductName 찾고 없는 경우 끝에 추가
-  let normalizeProductNameColumnNumber = orderSheet.findOrAddColumn(
-    "상품명2"
-  );
+  let normalizeProductNameColumnNumber =
+    orderSheet.findOrAddColumn("Nor상품명");
+  let normalizeColorColumnNumber = orderSheet.findOrAddColumn("Nor색상");
+  let normalizeSizeColumnNumber = orderSheet.findOrAddColumn("Nor사이즈");
   console.log(
     "matchingColumnNumber",
     matchingColumnNumber,
     "isNotSentColumnNumber",
     isNotSentColumnNumber,
     "normalizeProductNameColumnNumber",
-    normalizeProductNameColumnNumber
+    normalizeProductNameColumnNumber,
+    "normalizeColorColumnNumber",
+    normalizeColorColumnNumber,
+    "normalizeSizeColumnNumber",
+    normalizeSizeColumnNumber
   );
 
-  for (const row of orderSheet.firstSheet.getRows(2, orderSheet.firstSheet.rowCount - 1) ?? []) {
-    const brandName = row.getCell(brandNameColumnNumber).value as string;
+  for (const row of orderSheet.firstSheet.getRows(
+    2,
+    orderSheet.firstSheet.rowCount - 1
+  ) ?? []) {
+    const brandName = convertToComposite(row.getCell(brandNameColumnNumber).value as string);
     const productName = row.getCell(productNameColumnNumber).value as string;
     const color = row.getCell(colorColumnNumber).value as string;
     const size = row.getCell(sizeColumnNumber).value as string;
     const count = parseInt(row.getCell(countColumnNumber).value as string);
+    const isMatching =
+      row.getCell(matchingColumnNumber).value?.toString().toUpperCase() ===
+      "TRUE";
 
     const normalizedProductName = normalizeProductName(productName);
-
+    const normalizedColor = normalizeColor(color);
+    const normalizedSize = normalizeSize(size);
     // row 번호가 100번마다 출력
     if (row.number % 100 === 0) {
       console.log(`Processing row ${row.number}`);
@@ -240,12 +345,25 @@ export async function run(csvPath: string, excelPath: string) {
     // receiptData에서 해당하는 데이터 찾기
     const foundReceiptData = totalReceiptData.find(
       (data) =>
-        data.brandName === brandName &&
+        convertToComposite(data.brandName) === brandName &&
         data.normalizedProductName === normalizedProductName &&
-        data.color === color &&
-        data.size === size &&
-        row.getCell(matchingColumnNumber).value !== true
+        data.normalizedColor === normalizedColor &&
+        data.normalizedSize === normalizedSize
     );
+    // 베베데일리 양말 찾아보기
+    if (productName == "베베데일리양말" && color == "겨자") {
+      console.log({
+        brandName,
+        normalizedProductName,
+        normalizedColor,
+        normalizedSize,
+      });
+      console.log(
+        totalReceiptData.find((data) => data.productName == productName)
+      );
+      console.log("foundReceiptData", foundReceiptData);
+    }
+
     if (foundReceiptData) {
       // 찾은 데이터가 중복으로 찾아지는 경우 예외 처리
       if (foundReceiptData.foundCount + count > foundReceiptData.quantity) {
@@ -262,9 +380,15 @@ export async function run(csvPath: string, excelPath: string) {
     }
     // 일반화된 이름 칼럼에 일반화된 이름 추가
     row.getCell(normalizeProductNameColumnNumber).value = normalizedProductName;
+    // 일반화된 색상 칼럼에 일반화된 색상 추가
+    row.getCell(normalizeColorColumnNumber).value = normalizedColor;
+    // 일반화된 사이즈 칼럼에 일반화된 사이즈 추가
+    row.getCell(normalizeSizeColumnNumber).value = normalizedSize;
   }
   // 매칭된 건만 모아서 시트 추가
-  const matchingReceiptData = totalReceiptData.filter((data) => data.foundCount > 0);
+  const matchingReceiptData = totalReceiptData.filter(
+    (data) => data.foundCount > 0
+  );
   addSheetToExcel(excelData, "매칭된 건", matchingReceiptData);
   console.log(`Matching count: ${matchingReceiptData.length}`);
 
@@ -278,3 +402,5 @@ export async function run(csvPath: string, excelPath: string) {
   await saveExcelFile(excelData, newExcelPath);
   return;
 }
+
+
