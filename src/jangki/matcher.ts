@@ -193,8 +193,6 @@ function normalizeColor(color: string): string {
     노랑: "옐로우",
     보라: "퍼플",
     회색: "그레이",
-    메란: "메란지",
-    멜란지: "메란지",
     밤색: "브라운",
 
     // 오타 수정
@@ -208,6 +206,15 @@ function normalizeColor(color: string): string {
     검: "블랙",
     연회: "연회색",
     연베: "연베이지",
+    메란: "메란지",
+    멜란지: "메란지",
+    beige: "베이지",
+    black: "블랙",
+    cream: "크림",
+    navy: "네이비",
+    red: "레드",
+    brown: "브라운",
+    khaki: "카키",
   };
 
   if (exactDictionary[color]) {
@@ -244,6 +251,8 @@ function normalizeSize(size: string | null | number): string {
 
   const exactDictionary: { [key: string]: string } = {
     ONESIZE: "ONE",
+    "세트": "ONE",
+    "SET": "ONE",
   };
   if (exactDictionary[size]) {
     size = exactDictionary[size];
@@ -309,6 +318,7 @@ export async function run(csvPath: string, excelPath: string) {
     orderSheet.findOrAddColumn("Nor상품명");
   let normalizeColorColumnNumber = orderSheet.findOrAddColumn("Nor색상");
   let normalizeSizeColumnNumber = orderSheet.findOrAddColumn("Nor사이즈");
+  let matchingCountColumnNumber = orderSheet.findOrAddColumn("매칭건수");
   console.log(
     "matchingColumnNumber",
     matchingColumnNumber,
@@ -322,6 +332,15 @@ export async function run(csvPath: string, excelPath: string) {
     normalizeSizeColumnNumber
   );
 
+  const groupByBrandName = new Map<string, ReceiptData[]>();
+  for (const receiptData of totalReceiptData) {
+    const brandName = convertToComposite(receiptData.brandName);
+    if (!groupByBrandName.has(brandName)) {
+      groupByBrandName.set(brandName, []);
+    }
+    groupByBrandName.get(brandName)?.push(receiptData);
+  }
+
   for (const row of orderSheet.firstSheet.getRows(
     2,
     orderSheet.firstSheet.rowCount - 1
@@ -331,9 +350,6 @@ export async function run(csvPath: string, excelPath: string) {
     const color = row.getCell(colorColumnNumber).value as string;
     const size = row.getCell(sizeColumnNumber).value as string;
     const count = parseInt(row.getCell(countColumnNumber).value as string);
-    const isMatching =
-      row.getCell(matchingColumnNumber).value?.toString().toUpperCase() ===
-      "TRUE";
 
     const normalizedProductName = normalizeProductName(productName);
     const normalizedColor = normalizeColor(color);
@@ -350,19 +366,6 @@ export async function run(csvPath: string, excelPath: string) {
         data.normalizedColor === normalizedColor &&
         data.normalizedSize === normalizedSize
     );
-    // 베베데일리 양말 찾아보기
-    if (productName == "베베데일리양말" && color == "겨자") {
-      console.log({
-        brandName,
-        normalizedProductName,
-        normalizedColor,
-        normalizedSize,
-      });
-      console.log(
-        totalReceiptData.find((data) => data.productName == productName)
-      );
-      console.log("foundReceiptData", foundReceiptData);
-    }
 
     if (foundReceiptData) {
       // 찾은 데이터가 중복으로 찾아지는 경우 예외 처리
@@ -402,5 +405,3 @@ export async function run(csvPath: string, excelPath: string) {
   await saveExcelFile(excelData, newExcelPath);
   return;
 }
-
-
