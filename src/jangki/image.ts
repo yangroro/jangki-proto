@@ -1,8 +1,14 @@
 import { Jimp, JimpInstance } from "jimp";
+import sharp from 'sharp';
 
 export async function readReceipt(path: string): Promise<JimpInstance> {
   try {
-    return (await Jimp.read(path)) as JimpInstance;
+    // Jimp보다 오류에 더 강인한 sharp로 이미지를 png로 변환하여 로드
+    const buffer = await sharp(path)
+      .toFormat('png')
+      .toBuffer();
+    
+    return (await Jimp.read(buffer)) as JimpInstance;
   } catch (error) {
     console.error(`${path} 이미지 로드 중 오류 발생:`, error);
     throw error;

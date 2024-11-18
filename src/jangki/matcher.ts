@@ -88,7 +88,7 @@ export function csvToReceiptData(
   // 마지막 글자가 숫자인 경우 숫자 제거
   const brandName = receiptName.replace(/\d+$/, "");
   return csv.map((row) => {
-    if (row["품명"] == "1898뉴욕후드") {
+    if (row["품명"] == "") {
       console.log(row);
     }
     return {
@@ -211,10 +211,10 @@ export function normalizeProductName(productName: string): string {
   productName = productName.replace(/\s+/g, "");
 
   // 특수문자 단순 제거
-  productName = productName.replace(/[^\w가-힣]+/g, "");
+  productName = productName.replace(/[^A-Za-z0-9가-힣]+/g, "");
 
   // postfix 용어집, 대소문자 모두 매칭
-  const nameDictionary: { [key: string]: string } = {
+  const postfixDictionary: { [key: string]: string } = {
     TEE: "티셔츠",
     OPS: "원피스",
     MTM: "맨투맨",
@@ -226,18 +226,22 @@ export function normalizeProductName(productName: string): string {
     P: "팬츠",
     T: "티셔츠",
     SK: "스커트",
+    BL: "블라우스",
+
+    티: "티셔츠",
     바지: "팬츠",
     맨투맨티셔츠: "맨투맨",
   };
   // key의 길이순으로 정렬 길이 내림차순
-  const sortedPostfixDictionary = Object.keys(nameDictionary).sort(
+  const sortedPostfixDictionary = Object.keys(postfixDictionary).sort(
     (a, b) => b.length - a.length
   );
 
   for (const postfix of sortedPostfixDictionary) {
+    // postfix는 끝이 일치하는 경우만 대치
     productName = productName.replace(
-      postfix.toUpperCase(),
-      nameDictionary[postfix]
+      new RegExp(postfix.toUpperCase() + "$"),
+      postfixDictionary[postfix]
     );
   }
 
@@ -278,17 +282,29 @@ function normalizeColor(color: string): string {
     연핑: "연핑크",
     회: "그레이",
     검: "블랙",
+    곤: "곤색",
+    밤: "브라운",
+    아: "아이보리",
     연회: "연회색",
     연베: "연베이지",
     메란: "메란지",
     멜란지: "메란지",
-    beige: "베이지",
-    black: "블랙",
-    cream: "크림",
-    navy: "네이비",
-    red: "레드",
-    brown: "브라운",
-    khaki: "카키",
+    BEIGE: "베이지",
+    BLACK: "블랙",
+    CREAM: "크림",
+    NAVY: "네이비",
+    RED: "레드",
+    BROWN: "브라운",
+    KHAKI: "카키",
+    GREY: "그레이",
+    BLUE: "블루",
+    GREEN: "그린",
+    YELLOW: "옐로우",
+    PURPLE: "퍼플",
+    PINK: "핑크",
+    
+    // 오타 수정
+    블럭: "블랙",
   };
 
   if (exactDictionary[color]) {
@@ -320,13 +336,16 @@ function normalizeSize(size: string | null | number): string {
   size = size.replace(/\s+/g, "");
   // 호로 끝나는 경우 호 제거
   size = size.replace(/호$/, "");
-  // ONESIZE -> ONE
-  size = size.replace("ONESIZE", "ONE");
 
   const exactDictionary: { [key: string]: string } = {
-    ONESIZE: "ONE",
-    세트: "ONE",
-    SET: "ONE",
+    //
+    ONESIZE: "FREE",
+    ONE: "FREE",
+    세트: "FREE",
+    SET: "FREE",
+    // OCR에서 I로 인식된 경우 L로 변경
+    I: "L",
+    XXL: "2XL",
   };
   if (exactDictionary[size]) {
     size = exactDictionary[size];
@@ -447,6 +466,7 @@ export async function run(csvPath: string, excelPath: string) {
         matchCount++;
       }
     }
+    // 한번 매치 수행하고 남은 데이터는
   }
 
   // 브랜드별로 ReceiptData를 시트에 추가

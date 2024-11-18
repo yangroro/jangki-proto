@@ -50,7 +50,7 @@ program
       "처리할 영수증:",
       receiptFiles.map((file) => file.split("/").pop())
     );
-    const chunkSize = 2;
+    const chunkSize = 1;
 
     await runWithConcurrency<void>(
       receiptFiles.map((file) => () => processReceipt(targetDir, file)),
