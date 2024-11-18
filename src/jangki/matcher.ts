@@ -302,7 +302,7 @@ function normalizeColor(color: string): string {
     YELLOW: "옐로우",
     PURPLE: "퍼플",
     PINK: "핑크",
-    
+
     // 오타 수정
     블럭: "블랙",
   };
@@ -349,6 +349,18 @@ function normalizeSize(size: string | null | number): string {
   };
   if (exactDictionary[size]) {
     size = exactDictionary[size];
+  }
+
+  // 9(L) -> L
+  // 사이즈 표기 방식을 모두 커버할 수 있도록 함 (M) 19M/L
+  const availableSize = ["JS", "JM", "JL", "JXL", "XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"].sort(
+    (a, b) => b.length - a.length
+  );
+  for (const available of availableSize) {
+    if (size.includes(`(${available})`) || size.includes(`/${available}`)) {
+      size = available;
+      break;
+    }
   }
 
   // S(0-6M) -> S L(5~8) -> L 과같이 괄호 안에 내용물이 있고 XS, S, M, L, XL 과같이 크기만 표기된 경우 괄호 제거
@@ -425,7 +437,7 @@ export async function run(csvPath: string, excelPath: string) {
   const totalOrderData = new Map<string, OrderData[]>();
   for (const csv of csvs) {
     const { fileName, data } = csv;
-    const receiptName = fileName.replace(".csv", "");
+    const receiptName = fileName.replace(".csv", "").toLowerCase();
     if (!receiptName) {
       console.error(`${fileName} 영수증 이름 오류`);
       continue;
@@ -530,10 +542,14 @@ function matchOrderToReceipt(
       const receiptQuantity = receiptItem.quantity;
 
       // 필수 조건: 브랜드명 일치, 이미 매칭된 수량을 초과하지 않는 경우만 포함
+      // 주문에 색상 또는 사이즈가 없는 경우 포함
+      // 영수증에 색상 또는 사이즈가 없는 경우 포함
       return (
         orderBrand === receiptBrand &&
-        orderColor === receiptColor &&
-        orderSize === receiptSize &&
+        (orderColor === receiptColor ||
+          receiptColor === "" ||
+          orderColor === "") &&
+        (orderSize === receiptSize || receiptSize === "" || orderSize === "") &&
         // (orderColor === receiptColor ||
         //   orderSize === receiptSize ||
         //   (receiptColor === "" && receiptSize === "")) &&
