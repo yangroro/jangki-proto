@@ -18,7 +18,7 @@ program
   .command("run <input>")
   .description("영수증 처리")
   .action(async (input: string) => {
-    const targetDir = "./4o-mini";
+    const targetDir = "./4o";
     if (!fs.existsSync(input)) {
       console.error(`${input} 경로가 존재하지 않습니다.`);
       return;
@@ -50,7 +50,7 @@ program
       "처리할 영수증:",
       receiptFiles.map((file) => file.split("/").pop())
     );
-    const chunkSize = 3;
+    const chunkSize = 2;
 
     await runWithConcurrency<void>(
       receiptFiles.map((file) => () => processReceipt(targetDir, file)),

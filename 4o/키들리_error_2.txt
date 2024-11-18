@@ -1,0 +1,2 @@
+
+AI_RetryError: Failed after 3 attempts. Last error: Rate limit reached for gpt-4o in organization org-4fEiKFK8qGjGkUFez6xUGcRq on tokens per min (TPM): Limit 30000, Used 28766, Requested 1370. Please try again in 272ms. Visit https://platform.openai.com/account/rate-limits to learn more.

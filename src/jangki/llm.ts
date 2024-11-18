@@ -40,7 +40,7 @@ const SYSTEM_PROMPT = `
    - 응답에 설명등은 포함하지 말고 csv 결과만 출력하세요.
 
 ### 출력 예시:
-제품명,색상,사이즈,단가,수량,금액,미송여부
+품명,색상,사이즈,단가,수량,금액,미송여부
 23.ST시보리티,베이지,M,9000,1,9000,N
 33.골덴팔부바지,베이지,S,15000,1,15000,Y
 33.골덴팔부바지,차콜,XL,15000,1,15000,N
@@ -56,7 +56,9 @@ export async function receiptToCSV(
   isRetry: boolean
 ): Promise<string> {
   const { text: responseText } = await generateText({
-    model: isRetry ? openai("gpt-4o") : openai("gpt-4o-mini"),
+    // model: isRetry ? openai("gpt-4o") : openai("gpt-4o-mini"),
+    // 무조건 gpt-4o로 처리
+    model: openai("gpt-4o"),
     system: SYSTEM_PROMPT,
     prompt: receiptText,
   });
@@ -71,10 +73,10 @@ export async function receiptToCSV(
 
 export async function validateCSV(csv: string): Promise<boolean> {
   const records = parse(csv, { columns: true });
-  // columns이 제품명,색상,사이즈,단가,수량,금액,미송여부 인지 확인
+  // columns이 품명,색상,사이즈,단가,수량,금액,미송여부 인지 확인
   // 추출된 결과가 비어있는 경우 오류
   if (records.length === 0) {
     return false;
   }
-  return csv.split("\n")[0] == "품명,색상,사이즈,단가,수량,금액,미송여부";
+  return csv.split("\n")[0] === "품명,색상,사이즈,단가,수량,금액,미송여부";
 }

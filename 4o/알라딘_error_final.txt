@@ -1,0 +1,16 @@
+품명,색상,사이즈,단가,수량,금액,미송여부
+가을골지날날이티,살구,M,8500,1,8500,N
+가을골지날날이티,연베이지,M,8500,1,8500,N
+가을엔골지블라우스,핑크,M,11900,1,11900,N
+넥리본블라우스,크림,XL,17850,1,17850,N
+주름퍼프자켓,아이보리,L,16150,1,16150,N
+가을에도골지팬츠,브라운,S,8500,2,17000,Y
+가을에도골지팬츠,베이지,M,8500,1,8500,Y
+가을에도골지팬츠,핑크,M,8500,2,17000,Y
+가을엔골지블라우스,브라운,S,11900,1,11900,Y
+가을엔골지블라우스,베이지,M,11900,1,11900,Y
+느낌샤스커트,크림베이지,M,15300,1,15300,Y
+리본데님부츠컷,중청,M,16150,1,16150,Y
+멜빵주름스커트,중청,M,16150,1,16150,Y
+하트주름데님팬츠,연청,M,16150,1,16150,Y
+AI_RetryError: Failed after 3 attempts. Last error: Rate limit reached for gpt-4o in organization org-4fEiKFK8qGjGkUFez6xUGcRq on tokens per min (TPM): Limit 30000, Used 29212, Requested 1149. Please try again in 722ms. Visit https://platform.openai.com/account/rate-limits to learn more.

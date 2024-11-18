@@ -1,0 +1,13 @@
+품명,색상,사이즈,단가,수량,금액,미송여부
+24가을)유니상하,블루,M,11000,1,11000,N
+24가을)유니상하,마이보리,XL,11000,1,11000,N
+24가을)헤자티,엘로우,M,6000,1,6000,N
+24가을)혜자티,차콜,L,6000,1,6000,N
+24가을)혜자티,크림,M,6000,1,6000,N
+24가을)해자티,핑크,L,6000,1,6000,N
+프렌즈상하,네이비,XL,19000,1,19000,N
+프렌즈상하,베이지,M,19000,1,19000,N
+해피카라상하,와인,XL,16000,1,16000,N
+허그베어상하,베이지,M,15000,1,15000,N
+허그베어상하,핑크,XL,15000,1,15000,N
+AI_RetryError: Failed after 3 attempts. Last error: Rate limit reached for gpt-4o in organization org-4fEiKFK8qGjGkUFez6xUGcRq on tokens per min (TPM): Limit 30000, Used 28966, Requested 1035. Please try again in 2ms. Visit https://platform.openai.com/account/rate-limits to learn more.

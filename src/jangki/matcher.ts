@@ -2,8 +2,16 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse";
 import ExcelJS from "exceljs";
+import {
+  weightedLevenshteinDistance,
+  weightedLevenshteinRatio,
+} from "../utils/match";
+import { generateId } from "../utils/id";
 
 interface ReceiptData {
+  id: string;
+  // 영수증 파일명
+  receiptName: string;
   // 품명,색상,사이즈,단가,수량,금액,미송여부
   brandName: string;
   productName: string;
@@ -14,10 +22,63 @@ interface ReceiptData {
   amount: number;
   isNotSent: boolean;
   foundCount: number;
-  
-  normalizedProductName?: string;
-  normalizedColor?: string;
-  normalizedSize?: string;
+
+  normalizedBrandName: string;
+  normalizedProductName: string;
+  normalizedColor: string;
+  normalizedSize: string;
+}
+
+class OrderData {
+  orderSheet: OrderSheet;
+  row: ExcelJS.Row;
+  brandName: string;
+  productName: string;
+  color: string;
+  size: string;
+  count: number;
+  normalizedBrandName: string;
+  normalizedProductName: string;
+  normalizedColor: string;
+  normalizedSize: string;
+
+  constructor(orderSheet: OrderSheet, row: ExcelJS.Row) {
+    this.orderSheet = orderSheet;
+    this.row = row;
+
+    this.brandName = convertToComposite(
+      (row.getCell(orderSheet.brandNameColumnNumber).value as string) ?? ""
+    );
+    this.productName = row.getCell(orderSheet.productNameColumnNumber)
+      .value as string;
+    this.color =
+      (row.getCell(orderSheet.colorColumnNumber).value as string) ?? "";
+    this.size =
+      (row.getCell(orderSheet.sizeColumnNumber).value as string) ?? "";
+    this.count =
+      (row.getCell(orderSheet.countColumnNumber).value as number) ?? 0;
+
+    this.normalizedBrandName = convertToComposite(this.brandName);
+    this.normalizedProductName = normalizeProductName(this.productName);
+    this.normalizedColor = normalizeColor(this.color);
+    this.normalizedSize = normalizeSize(this.size);
+  }
+  recordNormalizedData() {
+    this.row.getCell(this.orderSheet.normalizeProductNameColumnNumber).value =
+      this.normalizedProductName;
+    this.row.getCell(this.orderSheet.normalizeColorColumnNumber).value =
+      this.normalizedColor;
+    this.row.getCell(this.orderSheet.normalizeSizeColumnNumber).value =
+      this.normalizedSize;
+  }
+
+  recordWithReceiptData(receiptData: ReceiptData) {
+    this.row.getCell(this.orderSheet.matchingColumnNumber).value = true;
+    this.row.getCell(this.orderSheet.isNotSentColumnNumber).value =
+      receiptData.isNotSent;
+    this.row.getCell(this.orderSheet.matchingIdColumnNumber).value =
+      receiptData.id;
+  }
 }
 
 export function csvToReceiptData(
@@ -26,20 +87,29 @@ export function csvToReceiptData(
 ): ReceiptData[] {
   // 마지막 글자가 숫자인 경우 숫자 제거
   const brandName = receiptName.replace(/\d+$/, "");
-  return csv.map((row) => ({
-    brandName,
-    productName: row["품명"],
-    color: row["색상"],
-    size: row["사이즈"],
-    wholesalePrice: row["단가"],
-    quantity: row["수량"],
-    amount: row["금액"],
-    isNotSent: row["미송여부"] === "Y",
-    foundCount: 0,
-    normalizedProductName: normalizeProductName(row["품명"]),
-    normalizedColor: normalizeColor(row["색상"]),
-    normalizedSize: normalizeSize(row["사이즈"]),
-  }));
+  return csv.map((row) => {
+    if (row["품명"] == "1898뉴욕후드") {
+      console.log(row);
+    }
+    return {
+      id: generateId(),
+      receiptName,
+      brandName,
+      productName: row["품명"],
+      color: row["색상"],
+      size: row["사이즈"],
+      wholesalePrice: row["단가"],
+      quantity: row["수량"],
+      amount: row["금액"],
+      isNotSent: row["미송여부"] === "Y",
+      foundCount: 0,
+
+      normalizedBrandName: convertToComposite(brandName),
+      normalizedProductName: normalizeProductName(row["품명"]),
+      normalizedColor: normalizeColor(row["색상"]),
+      normalizedSize: normalizeSize(row["사이즈"]),
+    };
+  });
 }
 
 function receiptDataToSheetData(receiptData: ReceiptData[]): any[] {
@@ -53,6 +123,8 @@ function receiptDataToSheetData(receiptData: ReceiptData[]): any[] {
     Nor상품명: data.normalizedProductName,
     Nor색상: data.normalizedColor,
     Nor사이즈: data.normalizedSize,
+    매칭여부: data.foundCount > 0,
+    매치ID: data.id,
   }));
 }
 
@@ -118,19 +190,22 @@ export async function saveExcelFile(
 }
 
 function convertToComposite(input: string): string {
-  return input.normalize('NFC');
+  return input.normalize("NFC");
 }
 
 export function normalizeProductName(productName: string): string {
   productName = convertToComposite(productName);
   // 대문자로 전환
   productName = productName.toUpperCase();
-  // 예시: 01.공룡맨투맨 -> 공룡맨투맨
-  productName = productName.replace(/^\d+\./, "");
+  // // 예시: 01.공룡맨투맨 -> 공룡맨투맨
+  // productName = productName.replace(/^\d+\./, "");
 
-  // 예시: 기획)공룡맨투맨 -> 공룡맨투맨
-  // 게으른 매칭 사용(첫번째 괄호만 제거)
-  productName = productName.replace(/.*?\)/, "");
+  // // 예시: 기획)공룡맨투맨 -> 공룡맨투맨
+  // // 게으른 매칭 사용(첫번째 괄호만 제거)
+  // productName = productName.replace(/.*?\)/, "");
+
+  // 숫자로 시작하는 경우 숫자 제거
+  productName = productName.replace(/^\d+/, "");
 
   // 공백 제거
   productName = productName.replace(/\s+/g, "");
@@ -195,8 +270,7 @@ function normalizeColor(color: string): string {
     회색: "그레이",
     밤색: "브라운",
 
-    // 오타 수정
-    덕색: "먹색",
+    세트: "SET",
   };
   const exactDictionary: { [key: string]: string } = {
     아이: "아이보리",
@@ -251,8 +325,8 @@ function normalizeSize(size: string | null | number): string {
 
   const exactDictionary: { [key: string]: string } = {
     ONESIZE: "ONE",
-    "세트": "ONE",
-    "SET": "ONE",
+    세트: "ONE",
+    SET: "ONE",
   };
   if (exactDictionary[size]) {
     size = exactDictionary[size];
@@ -269,13 +343,40 @@ class OrderSheet {
   columns: ExcelJS.CellValue[];
   columnCount: number;
 
+  brandNameColumnNumber: number;
+  productNameColumnNumber: number;
+  colorColumnNumber: number;
+  sizeColumnNumber: number;
+  countColumnNumber: number;
+
+  matchingColumnNumber: number;
+  isNotSentColumnNumber: number;
+  normalizeProductNameColumnNumber: number;
+  normalizeColorColumnNumber: number;
+  normalizeSizeColumnNumber: number;
+
+  matchingIdColumnNumber: number;
+
   constructor(excelData: ExcelJS.Workbook) {
     this.excelData = excelData;
     this.firstSheet = this.excelData.worksheets[0];
     this.columns = this.firstSheet.getRow(1).values as ExcelJS.CellValue[];
     this.columnCount = this.firstSheet.getRow(1).values.length as number;
-  }
 
+    this.brandNameColumnNumber = this.findOrAddColumn("브랜드");
+    this.productNameColumnNumber = this.findOrAddColumn("상품명");
+    this.colorColumnNumber = this.findOrAddColumn("색상");
+    this.sizeColumnNumber = this.findOrAddColumn("사이즈");
+    this.countColumnNumber = this.findOrAddColumn("수량");
+
+    this.matchingColumnNumber = this.findOrAddColumn("매칭여부");
+    this.isNotSentColumnNumber = this.findOrAddColumn("미송여부");
+    this.normalizeProductNameColumnNumber = this.findOrAddColumn("Nor상품명");
+    this.normalizeColorColumnNumber = this.findOrAddColumn("Nor색상");
+    this.normalizeSizeColumnNumber = this.findOrAddColumn("Nor사이즈");
+
+    this.matchingIdColumnNumber = this.findOrAddColumn("매치ID");
+  }
   findOrAddColumn(columnName: string): number {
     const index = this.columns.findIndex((column) => column === columnName);
     if (index === -1) {
@@ -288,120 +389,192 @@ class OrderSheet {
   addSheet(sheetName: string, data: any[]) {
     addSheetToExcel(this.excelData, sheetName, data);
   }
+
+  getOrderData(): OrderData[] {
+    const rows = this.firstSheet.getRows(2, this.firstSheet.rowCount - 1) ?? [];
+    return rows.map((row) => new OrderData(this, row));
+  }
 }
 
 export async function run(csvPath: string, excelPath: string) {
   const csvs = await loadCSVFilesFromDirectory(csvPath);
   const excelData = await readExcelFile(excelPath);
   const orderSheet = new OrderSheet(excelData);
-  const totalReceiptData: ReceiptData[] = [];
+  const orderData = orderSheet.getOrderData();
+
+  const totalReceiptData = new Map<string, ReceiptData[]>();
+  const totalOrderData = new Map<string, OrderData[]>();
   for (const csv of csvs) {
     const { fileName, data } = csv;
     const receiptName = fileName.replace(".csv", "");
+    if (!receiptName) {
+      console.error(`${fileName} 영수증 이름 오류`);
+      continue;
+    }
     const receiptData = csvToReceiptData(data, receiptName);
-    orderSheet.addSheet(receiptName, receiptDataToSheetData(receiptData));
-    totalReceiptData.push(...receiptData);
+    if (!receiptData[0]) {
+      console.error(`${fileName} 영수증 데이터 오류`);
+      continue;
+    }
+    if (totalReceiptData.has(receiptData[0].brandName)) {
+      totalReceiptData.get(receiptData[0].brandName)?.push(...receiptData);
+    } else {
+      totalReceiptData.set(receiptData[0].brandName, receiptData);
+    }
   }
 
-  const brandNameColumnNumber = orderSheet.findOrAddColumn("브랜드");
-  const productNameColumnNumber = orderSheet.findOrAddColumn("상품명");
-  const colorColumnNumber = orderSheet.findOrAddColumn("색상");
-  const sizeColumnNumber = orderSheet.findOrAddColumn("사이즈");
-  const countColumnNumber = orderSheet.findOrAddColumn("수량");
-
-  // 매칭 여부 칼럼을 찾고 없는 경우 첫번째 Row끝에 추가
-  let matchingColumnNumber = orderSheet.findOrAddColumn("매칭여부");
-  // 미송여부 칼럼을 찾고 없는 경우 끝에 추가
-  let isNotSentColumnNumber = orderSheet.findOrAddColumn("미송여부");
-  //  normalizeProductName 찾고 없는 경우 끝에 추가
-  let normalizeProductNameColumnNumber =
-    orderSheet.findOrAddColumn("Nor상품명");
-  let normalizeColorColumnNumber = orderSheet.findOrAddColumn("Nor색상");
-  let normalizeSizeColumnNumber = orderSheet.findOrAddColumn("Nor사이즈");
-  let matchingCountColumnNumber = orderSheet.findOrAddColumn("매칭건수");
-  console.log(
-    "matchingColumnNumber",
-    matchingColumnNumber,
-    "isNotSentColumnNumber",
-    isNotSentColumnNumber,
-    "normalizeProductNameColumnNumber",
-    normalizeProductNameColumnNumber,
-    "normalizeColorColumnNumber",
-    normalizeColorColumnNumber,
-    "normalizeSizeColumnNumber",
-    normalizeSizeColumnNumber
-  );
-
-  const groupByBrandName = new Map<string, ReceiptData[]>();
-  for (const receiptData of totalReceiptData) {
-    const brandName = convertToComposite(receiptData.brandName);
-    if (!groupByBrandName.has(brandName)) {
-      groupByBrandName.set(brandName, []);
-    }
-    groupByBrandName.get(brandName)?.push(receiptData);
+  for (const order of orderData) {
+    totalOrderData.set(order.normalizedBrandName, [
+      ...(totalOrderData.get(order.normalizedBrandName) ?? []),
+      order,
+    ]);
+    order.recordNormalizedData();
   }
+  let matchCount = 0;
 
-  for (const row of orderSheet.firstSheet.getRows(
-    2,
-    orderSheet.firstSheet.rowCount - 1
-  ) ?? []) {
-    const brandName = convertToComposite(row.getCell(brandNameColumnNumber).value as string);
-    const productName = row.getCell(productNameColumnNumber).value as string;
-    const color = row.getCell(colorColumnNumber).value as string;
-    const size = row.getCell(sizeColumnNumber).value as string;
-    const count = parseInt(row.getCell(countColumnNumber).value as string);
-
-    const normalizedProductName = normalizeProductName(productName);
-    const normalizedColor = normalizeColor(color);
-    const normalizedSize = normalizeSize(size);
-    // row 번호가 100번마다 출력
-    if (row.number % 100 === 0) {
-      console.log(`Processing row ${row.number}`);
-    }
-    // receiptData에서 해당하는 데이터 찾기
-    const foundReceiptData = totalReceiptData.find(
-      (data) =>
-        convertToComposite(data.brandName) === brandName &&
-        data.normalizedProductName === normalizedProductName &&
-        data.normalizedColor === normalizedColor &&
-        data.normalizedSize === normalizedSize
+  // 브랜드별로 매칭 수행
+  for (const brandName of totalOrderData.keys()) {
+    const orderData = totalOrderData.get(brandName) ?? [];
+    const receiptData = totalReceiptData.get(brandName) ?? [];
+    const matchingReceiptData = matchOrderToReceipt(
+      orderData,
+      receiptData,
+      0.3
     );
-
-    if (foundReceiptData) {
-      // 찾은 데이터가 중복으로 찾아지는 경우 예외 처리
-      if (foundReceiptData.foundCount + count > foundReceiptData.quantity) {
-        console.error(
-          `Found receipt data: ${foundReceiptData.brandName} ${foundReceiptData.productName} ${foundReceiptData.color} ${foundReceiptData.size} ${foundReceiptData.quantity} ${foundReceiptData.foundCount} ${count}`
-        );
+    for (const match of matchingReceiptData) {
+      if (match.matchedReceipt) {
+        match.order.recordWithReceiptData(match.matchedReceipt);
+        matchCount++;
       }
-      foundReceiptData.foundCount += count;
-
-      // 데이터를 찾은 경우 첫번째 시트의 매칭여부 칼럼에 true 추가
-      row.getCell(matchingColumnNumber).value = true;
-      // 미송 여부 칼럼에 미송 여부 추가
-      row.getCell(isNotSentColumnNumber).value = foundReceiptData.isNotSent;
     }
-    // 일반화된 이름 칼럼에 일반화된 이름 추가
-    row.getCell(normalizeProductNameColumnNumber).value = normalizedProductName;
-    // 일반화된 색상 칼럼에 일반화된 색상 추가
-    row.getCell(normalizeColorColumnNumber).value = normalizedColor;
-    // 일반화된 사이즈 칼럼에 일반화된 사이즈 추가
-    row.getCell(normalizeSizeColumnNumber).value = normalizedSize;
   }
-  // 매칭된 건만 모아서 시트 추가
-  const matchingReceiptData = totalReceiptData.filter(
-    (data) => data.foundCount > 0
-  );
-  addSheetToExcel(excelData, "매칭된 건", matchingReceiptData);
-  console.log(`Matching count: ${matchingReceiptData.length}`);
 
-  // 매칭안된 건만 모아서 시트 추가
-  const notMatchingReceiptData = totalReceiptData.filter(
-    (data) => data.foundCount === 0
+  // 브랜드별로 ReceiptData를 시트에 추가
+  // for (const [_, receiptData] of totalReceiptData) {
+  //   orderSheet.addSheet(
+  //     receiptData[0].receiptName,
+  //     receiptDataToSheetData(receiptData)
+  //   );
+  // }
+  const receiptExcel = new ExcelJS.Workbook();
+  const allReceiptData = Array.from(totalReceiptData.values()).flat();
+  addSheetToExcel(
+    receiptExcel,
+    "영수증",
+    receiptDataToSheetData(allReceiptData)
   );
-  addSheetToExcel(excelData, "매칭안된 건", notMatchingReceiptData);
-  console.log(`Not matching count: ${notMatchingReceiptData.length}`);
-  const newExcelPath = `${excelPath.replace(".xlsx", "")}_new.xlsx`;
-  await saveExcelFile(excelData, newExcelPath);
+
+  console.log(`Matching count: ${matchCount}`);
+  const totalReceiptCount = Array.from(totalReceiptData.values()).reduce(
+    (acc, curr) => acc + curr.length,
+    0
+  );
+  console.log(`Total Receipt count: ${totalReceiptCount}`);
+  console.log(
+    `Total Match Ratio: ${((matchCount / totalReceiptCount) * 100).toFixed(1)}%`
+  );
+  const matchedExcelPath = `${excelPath.replace(".xlsx", "")}_matched.xlsx`;
+  const receiptExcelPath = `${excelPath.replace(".xlsx", "")}_receipt.xlsx`;
+
+  await saveExcelFile(excelData, matchedExcelPath);
+  await saveExcelFile(receiptExcel, receiptExcelPath);
   return;
+}
+
+// 메인 매칭 함수
+function matchOrderToReceipt(
+  orders: OrderData[],
+  receipts: ReceiptData[],
+  similarityThreshold: number = 0.8, // 유사도 임계값 설정 (기본값: 80%)
+  distanceThreshold: number = 1 // 거리 임계값 설정 (기본값: 1)
+): {
+  order: OrderData;
+  matchedReceipt?: ReceiptData;
+  similarity?: number;
+  distance?: number;
+}[] {
+  const matches = [];
+
+  for (const orderItem of orders) {
+    // 주문 항목의 필드 정규화
+    const orderBrand = orderItem.normalizedBrandName;
+    const orderProductName = orderItem.normalizedProductName;
+    const orderColor = orderItem.normalizedColor;
+    const orderSize = orderItem.normalizedSize;
+
+    // 브랜드, 색상, 사이즈가 일치하는 영수증 항목 필터링
+    const candidateReceipts = receipts.filter((receiptItem) => {
+      const receiptBrand = receiptItem.normalizedBrandName;
+      const receiptColor = receiptItem.normalizedColor;
+      const receiptSize = receiptItem.normalizedSize;
+      const receiptQuantity = receiptItem.quantity;
+
+      // 필수 조건: 브랜드명 일치, 이미 매칭된 수량을 초과하지 않는 경우만 포함
+      return (
+        orderBrand === receiptBrand &&
+        orderColor === receiptColor &&
+        orderSize === receiptSize &&
+        // (orderColor === receiptColor ||
+        //   orderSize === receiptSize ||
+        //   (receiptColor === "" && receiptSize === "")) &&
+        receiptItem.quantity > receiptItem.foundCount //
+      );
+    });
+
+    let bestMatch: ReceiptData | undefined;
+    let highestSimilarity = 0;
+    let bestDistance = 0;
+
+    for (const receiptItem of candidateReceipts) {
+      // 영수증 상품명 정규화
+      const receiptProductName = receiptItem.normalizedProductName;
+
+      // 상품명 유사도 계산
+      const similarity = weightedLevenshteinRatio(
+        orderProductName,
+        receiptProductName
+      );
+      const distance = weightedLevenshteinDistance(
+        orderProductName,
+        receiptProductName
+      );
+
+      // 가장 높은 유사도를 가진 항목 찾기
+      if (similarity > highestSimilarity) {
+        highestSimilarity = similarity;
+        bestMatch = receiptItem;
+        bestDistance = distance;
+      }
+    }
+
+    // 유사도가 임계값 이상인 경우 매칭
+    if (bestMatch && highestSimilarity >= similarityThreshold) {
+      bestMatch.foundCount += orderItem.count; // 매칭된 수량 증가
+      matches.push({
+        order: orderItem,
+        matchedReceipt: bestMatch,
+        similarity: highestSimilarity,
+      });
+    } else {
+      // 데이터 확인을 위해 특정 제품 명인 경우 bestMatch 출력
+      if (orderItem.productName === "") {
+        console.log(orderItem);
+        console.log(
+          "highestSimilarity",
+          highestSimilarity,
+          "bestDistance",
+          bestDistance
+        );
+        console.log("bestMatch", bestMatch);
+      }
+      // 매칭되는 항목이 없는 경우
+      matches.push({
+        order: orderItem,
+        matchedReceipt: undefined,
+        similarity: undefined,
+      });
+    }
+  }
+
+  return matches;
 }

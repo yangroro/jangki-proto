@@ -1,0 +1,10 @@
+품명,색상,사이즈,단가,수량,금액,미송여부
+1+1줄리 페이크폴라,아이,F,5000,2,10000,Y
+초특가달콤후리스 아노락상하,차콜,S,13000,1,13000,Y
+기획데일리 빵실조거팬츠,블랙,L,7000,1,7000,Y
+기획메이플 니트상하세트,크림,S,9000,1,9000,N
+기획산토리 배색카라점퍼,소라,M,12000,1,12000,N
+기획산토리 배색카라점퍼,크림,L,12000,1,12000,N
+기획어도어 후드상하세트,벡메란지,S,10000,1,10000,Y
+기획이센스 옥스포드셔츠,베이지,S,11000,1,11000,Y
+AI_RetryError: Failed after 3 attempts. Last error: Rate limit reached for gpt-4o in organization org-4fEiKFK8qGjGkUFez6xUGcRq on tokens per min (TPM): Limit 30000, Used 29333, Requested 1150. Please try again in 966ms. Visit https://platform.openai.com/account/rate-limits to learn more.

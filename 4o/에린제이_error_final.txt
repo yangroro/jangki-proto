@@ -1,0 +1,9 @@
+품명,색상,사이즈,단가,수량,금액,미송여부
+PARISMTM,블랙,JS,14000,1,12600,N
+리본니트R,메란그레이,JL,20000,1,18000,N
+배색JP,네이비,JS,27000,1,24300,N
+배색JP,레드,XL,25000,1,22500,N
+별P,그린,JM,14000,1,12600,N
+별P,머스타드,XL,12000,1,10800,N
+플리츠치마바지,베이지,L,17000,1,15300,N
+AI_RetryError: Failed after 3 attempts. Last error: Rate limit reached for gpt-4o in organization org-4fEiKFK8qGjGkUFez6xUGcRq on tokens per min (TPM): Limit 30000, Used 29034, Requested 973. Please try again in 14ms. Visit https://platform.openai.com/account/rate-limits to learn more.

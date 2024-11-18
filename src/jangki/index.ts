@@ -78,7 +78,7 @@ export async function processReceipt(
       isValid = await validateCSV(csvResult);
       if (isValid) break;
     } catch (error) {
-      if (attempt === maxRetry) {
+      if (attempt >= maxRetry) {
         console.error(
           `${filename} ${maxRetry}번 시도 후 오류 발생. 오류 내용을 저장합니다.`
         );
@@ -98,6 +98,10 @@ export async function processReceipt(
         );
       }
     }
+  }
+  if (!isValid) {
+    console.error(`${filename} 영수증 처리 중 오류 발생`);
+    return;
   }
 
   const totalResultCount = csvResult.split("\n").length - 1;
